@@ -3,6 +3,7 @@ import time
 import requests
 import pickle
 import json
+from decouple import config
 
 client = None
 token = None
@@ -17,7 +18,7 @@ with open("client.pkl", "rb") as f:
 
 
 def update_client_token():
-    reqUrl = "https://login.windows.net/805ba517-8a74-4377-81c1-6af998bc4709/oauth2/token"
+    reqUrl = config("TOKEN_URL")
     payload = f"--kljmyvW1ndjXaOEAg4vPm6RBUqO6MC5A\r\nContent-Disposition: form-data; name=\"grant_type\"\r\n\r\nclient_credentials\r\n--kljmyvW1ndjXaOEAg4vPm6RBUqO6MC5A\r\nContent-Disposition: form-data; name=\"client_id\"\r\n\r\n{client['id']}\r\n--kljmyvW1ndjXaOEAg4vPm6RBUqO6MC5A\r\nContent-Disposition: form-data; name=\"client_secret\"\r\n\r\n{client['secret']}\r\n--kljmyvW1ndjXaOEAg4vPm6RBUqO6MC5A\r\nContent-Disposition: form-data; name=\"resource\"\r\n\r\nhttp://sentt01eprodweb.azurewebsites.net\r\n--kljmyvW1ndjXaOEAg4vPm6RBUqO6MC5A--\r\n"
     response = requests.post(reqUrl, data=payload,  headers=REQUEST_CUSTOM_HEADER)
     print(response.text)
