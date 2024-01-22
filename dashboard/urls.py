@@ -1,9 +1,12 @@
 from django.urls import path
-from .views import PlantListCreateAPIView, PlantUpdateDeleteAPIView, UnitListCreateAPIView, UnitUpdatedeleteAPIView
+from .views import (PlantListCreateAPIView, PlantUpdateDeleteAPIView, PlantListAPIView,
+                    UnitListCreateAPIView, UnitUpdatedeleteAPIView, UnitListAPIView)
 
 urlpatterns = [
-    path("plant/", PlantListCreateAPIView.as_view()),
+    path("plant/add_plant/", PlantListCreateAPIView.as_view()),
+    path("plant/", PlantListAPIView.as_view()),
     path("plant/<int:pk>", PlantUpdateDeleteAPIView.as_view()),
-    path("unit/", UnitListCreateAPIView.as_view()),
+    path("unit/add_unit/", UnitListCreateAPIView.as_view()),
+    path("unit/<str:plant>", UnitListAPIView.as_view()),
     path("unit/<int:pk>", UnitUpdatedeleteAPIView.as_view()),
 ]
