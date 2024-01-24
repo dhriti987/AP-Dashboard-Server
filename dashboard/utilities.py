@@ -89,13 +89,13 @@ def get_unit_data():
 
             unit_data_obj.save()
 
-    channel_layer = get_channel_layer()
+        channel_layer = get_channel_layer()
 
-    for i in plant_unit_data:
-        async_to_sync(channel_layer.group_send)(f"{i}", {
-            "type": "unit_data_for_plant",
-            "data": plant_unit_data[i],
-        })
+        for i in plant_unit_data:
+            async_to_sync(channel_layer.group_send)(f"{i}", {
+                "type": "unit_data_for_plant",
+                "data": plant_unit_data[i],
+            })
 
 
 # Schedule tasks
