@@ -27,7 +27,8 @@ class Unit(models.Model):
         Plant, on_delete=models.CASCADE, related_name="units")
     unit = models.CharField(max_length=10)
     code = models.CharField(max_length=30, unique=True)
-    max_voltage = models.IntegerField(default=330)
+    max_rated_power = models.IntegerField(
+        default=330, verbose_name="Max Rated Power")
 
     class Meta:
         unique_together = ('plant', 'unit')

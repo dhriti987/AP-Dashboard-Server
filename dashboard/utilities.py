@@ -100,8 +100,8 @@ def get_unit_data():
 
 # Schedule tasks
 schedule.every(55).minutes.do(update_client_token)
-schedule.every(5).seconds.do(get_unit_data)
-schedule.every(5).minutes.do(del_prev_day_record)
+schedule.every(30).seconds.do(get_unit_data)
+schedule.every().day.at("00:00", "Asia/Kolkata").do(del_prev_day_record)
 
 
 def run_scheduler():

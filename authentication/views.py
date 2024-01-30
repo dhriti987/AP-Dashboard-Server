@@ -23,3 +23,17 @@ class RegisterView(generics.GenericAPIView):
         user_data = serializer_obj.data
 
         return Response(user_data, status=status.HTTP_201_CREATED)
+
+
+class UserListView(generics.ListAPIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAdminUser]
+    serializer_class = UserSerializer
+    queryset = get_user_model().objects.all()
+
+
+class UserUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAdminUser]
+    serializer_class = UserSerializer
+    queryset = get_user_model().objects.all()

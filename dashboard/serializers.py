@@ -48,3 +48,21 @@ class UnitDataAPIRequestSerializer(serializers.ModelSerializer):
         Custom method to retrieve the 'systemGuid' field from the 'Unit' model.
         """
         return obj.system_guid
+
+
+class UnitDataSerializer(serializers.ModelSerializer):
+    sample_time = serializers.DateTimeField(format="%H:%M")
+    point_value = serializers.DecimalField(
+        max_digits=5, decimal_places=2, coerce_to_string=False)
+
+    class Meta:
+        model = UnitData
+        fields = ["point_value", "sample_time"]
+
+
+class UnitTimeSeriesDataSerializer(serializers.ModelSerializer):
+    unit_data = UnitDataSerializer(many=True)
+
+    class Meta:
+        model = Unit
+        fields = ["id", "unit_data"]
