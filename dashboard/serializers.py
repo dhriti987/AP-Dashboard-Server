@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Plant, Unit, UnitData
+from .models import Plant, Unit, UnitData, FrequencyData
 
 
 class PlantSerializer(serializers.ModelSerializer):
@@ -66,3 +66,13 @@ class UnitTimeSeriesDataSerializer(serializers.ModelSerializer):
     class Meta:
         model = Unit
         fields = ["id", "unit_data"]
+
+
+class FrequencyDataSerializer(serializers.ModelSerializer):
+    sample_time = serializers.DateTimeField(format="%H:%M")
+    point_value = serializers.DecimalField(
+        max_digits=5, decimal_places=2, coerce_to_string=False)
+
+    class Meta:
+        model = FrequencyData
+        fields = ["point_value", "sample_time"]

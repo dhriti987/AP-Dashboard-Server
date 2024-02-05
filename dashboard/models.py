@@ -51,3 +51,10 @@ class UnitData(models.Model):
     quality = models.CharField(max_length=20)
     derived_quality = models.CharField(max_length=20)
     sample_time = models.DateTimeField()
+
+
+class FrequencyData(models.Model):
+    point_value = models.DecimalField(max_digits=5, decimal_places=2)
+    sample_time = models.DateTimeField()
+    quality = models.CharField(max_length=20)
+    derived_quality = models.CharField(max_length=20)

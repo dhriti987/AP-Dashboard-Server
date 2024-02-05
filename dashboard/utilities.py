@@ -4,7 +4,7 @@ import requests
 import pickle
 import json
 from decouple import config
-from .serializers import UnitDataAPIRequestSerializer, Unit, UnitData, Plant
+from .serializers import UnitDataAPIRequestSerializer, Unit, UnitData, FrequencyData
 from datetime import datetime, timedelta
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
@@ -16,10 +16,25 @@ REQUEST_FORM_DATA_BOUNDARY = "kljmyvW1ndjXaOEAg4vPm6RBUqO6MC5A"
 REQUEST_CUSTOM_HEADER = {
     'content-type': "multipart/form-data; boundary={}".format(REQUEST_FORM_DATA_BOUNDARY),
 }
-
+frequency = {"pointId": "u9das0s_ai306205.pv",
+             "systemGuid": "e2e436dc-52cb-4f26-9ae7-23bce3d86727"}
 
 with open("client.pkl", "rb") as f:
     client = pickle.load(f)
+
+
+def update_client_credentials(client_id, client_secret):
+    global token
+    reqUrl = config("TOKEN_URL")
+    payload = f"--kljmyvW1ndjXaOEAg4vPm6RBUqO6MC5A\r\nContent-Disposition: form-data; name=\"grant_type\"\r\n\r\nclient_credentials\r\n--kljmyvW1ndjXaOEAg4vPm6RBUqO6MC5A\r\nContent-Disposition: form-data; name=\"client_id\"\r\n\r\n{client_id}\r\n--kljmyvW1ndjXaOEAg4vPm6RBUqO6MC5A\r\nContent-Disposition: form-data; name=\"client_secret\"\r\n\r\n{client_secret}\r\n--kljmyvW1ndjXaOEAg4vPm6RBUqO6MC5A\r\nContent-Disposition: form-data; name=\"resource\"\r\n\r\nhttp://sentt01eprodweb.azurewebsites.net\r\n--kljmyvW1ndjXaOEAg4vPm6RBUqO6MC5A--\r\n"
+    response = requests.post(reqUrl, data=payload,
+                             headers=REQUEST_CUSTOM_HEADER)
+    if response.status_code == 200:  # kaam baki h
+        token = response.json()["access_token"]
+        client["id"] = client_id
+        client["secret"] = client_secret
+        dump_in_pickle_file()
+    return response.status_code
 
 
 def update_client_token():
@@ -48,9 +63,7 @@ def del_prev_day_record():
     UnitData.objects.filter(sample_time__lte=last_24h).delete()
 
 
-def get_unit_data():
-
-    units = UnitDataAPIRequestSerializer(Unit.objects.all(), many=True).data
+def fetch_unit_data(units):
     reqUrl = config("UNIT_DATA_URL")
 
     headersList = {
@@ -65,29 +78,51 @@ def get_unit_data():
     })
 
     response = requests.post(reqUrl, data=payload,  headers=headersList)
+    return response
+
+
+def get_unit_data():
+
+    units = UnitDataAPIRequestSerializer(Unit.objects.all(), many=True).data
+
+    response = fetch_unit_data(
+        units=units + [frequency])
 
     data_points = response.json()
     if isinstance(data_points, list):
 
         plant_unit_data = {}
+        frequency_data_point = None
 
         for data_point in data_points:
-            unit_data_obj = UnitData(unit=Unit.objects.get(
-                point_id=data_point["pointId"]), point_value=data_point["pointValues"],
-                quality=data_point["pointAttributes"]["Quality"],
-                derived_quality=data_point["pointAttributes"]["DerivedQuality"],
-                sample_time=datetime.fromtimestamp(0) +
-                timedelta(microseconds=data_point["sampleTime"]/1000)
-            )
+            if data_point["pointId"] == frequency["pointId"]:
+                frequency_data_point = data_point
+                FrequencyData.objects.create(
+                    point_value=data_point["pointValues"],
+                    quality=data_point["pointAttributes"]["Quality"],
+                    derived_quality=data_point["pointAttributes"]["DerivedQuality"],
+                    sample_time=datetime.fromtimestamp(0) +
+                    timedelta(microseconds=data_point["sampleTime"]/1000))
+                continue
+            try:
+                unit_data_obj = UnitData(unit=Unit.objects.get(
+                    point_id=data_point["pointId"]), point_value=data_point["pointValues"],
+                    quality=data_point["pointAttributes"]["Quality"],
+                    derived_quality=data_point["pointAttributes"]["DerivedQuality"],
+                    sample_time=datetime.fromtimestamp(0) +
+                    timedelta(microseconds=data_point["sampleTime"]/1000)
+                )
 
-            grp_name = f"{unit_data_obj.unit.plant.name}"
+                grp_name = f"{unit_data_obj.unit.plant.name}"
 
-            if grp_name in plant_unit_data:
-                plant_unit_data[grp_name].append(data_point)
-            else:
-                plant_unit_data[grp_name] = [data_point]
+                if grp_name in plant_unit_data:
+                    plant_unit_data[grp_name].append(data_point)
+                else:
+                    plant_unit_data[grp_name] = [data_point]
 
-            unit_data_obj.save()
+                unit_data_obj.save()
+            except Exception as e:
+                print(e)
 
         channel_layer = get_channel_layer()
 
@@ -120,3 +155,6 @@ def dump_in_pickle_file():
     """
     with open("client.pkl", "wb") as f:
         pickle.dump(client, f)
+
+# u9das0s_ai306205.pv
+# e2e436dc-52cb-4f26-9ae7-23bce3d86727

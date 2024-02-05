@@ -1,11 +1,12 @@
 from rest_framework import generics
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from .serializers import Plant, PlantSerializer, Unit, UnitSerializer, UnitTimeSeriesDataSerializer, UnitData
+from .serializers import Plant, PlantSerializer, Unit, UnitSerializer, UnitTimeSeriesDataSerializer, UnitData, FrequencyData, FrequencyDataSerializer
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from django.db.models import Prefetch
 from datetime import datetime
+from .utilities import fetch_unit_data, update_client_credentials
 
 # Create your views here.
 
@@ -46,6 +47,15 @@ class UnitListCreateAPIView(generics.ListCreateAPIView):
     queryset = Unit.objects.all()
     serializer_class = UnitSerializer
 
+    def create(self, request, *args, **kwargs):
+        point_id = request.data.get("point_id")
+        system_guid = request.data.get("system_guid")
+        response = fetch_unit_data(
+            [{"pointId": point_id, "systemGuid": system_guid}])
+        if response.status_code == 400:
+            raise ValidationError("Invalid System Guid")
+        return super().create(request, *args, **kwargs)
+
 
 class UnitUpdatedeleteAPIView(generics.RetrieveUpdateDestroyAPIView):
     """
@@ -55,6 +65,24 @@ class UnitUpdatedeleteAPIView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAdminUser]
     queryset = Unit.objects.all()
     serializer_class = UnitSerializer
+
+    def update(self, request, *args, **kwargs):
+        point_id = request.data.get("point_id")
+        system_guid = request.data.get("system_guid")
+        response = fetch_unit_data(
+            [{"pointId": point_id, "systemGuid": system_guid}])
+        if response.status_code == 400:
+            raise ValidationError("Invalid System Guid")
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        point_id = request.data.get("point_id")
+        system_guid = request.data.get("system_guid")
+        response = fetch_unit_data(
+            [{"pointId": point_id, "systemGuid": system_guid}])
+        if response.status_code == 400:
+            raise ValidationError("Invalid System Guid")
+        return super().partial_update(request, *args, **kwargs)
 
 
 class UnitListAPIView(generics.ListAPIView):
@@ -74,11 +102,11 @@ class UnitTimeSeriesDataAPIView(generics.GenericAPIView):
     serializer_class = UnitTimeSeriesDataSerializer
 
     def get(self, request):
-        # print(self.request.query_params)
+        print(datetime.today().replace(hour=0, minute=0, second=0))
         if self.request.query_params.get("plant"):
             data = self.get_queryset().filter(
                 plant__name=self.request.query_params.get("plant")).prefetch_related(Prefetch(
-                    "unit_data", UnitData.objects.filter(sample_time__lt=datetime.today())))
+                    "unit_data", UnitData.objects.filter(sample_time__gt=datetime.today().replace(hour=0, minute=0, second=0))))
             serializer_obj = self.get_serializer_class()(data, many=True)
             for unit in serializer_obj.data:
                 distinct_data_points = []
@@ -91,23 +119,42 @@ class UnitTimeSeriesDataAPIView(generics.GenericAPIView):
         elif self.request.query_params.get("unit"):
             try:
                 data = self.get_queryset().prefetch_related(Prefetch(
-                    "unit_data", UnitData.objects.filter(sample_time__lt=datetime.today()))).get(pk=self.request.query_params.get("unit"))
+                    "unit_data", UnitData.objects.filter(sample_time__gt=datetime.today().replace(hour=0, minute=0, second=0)))).get(pk=self.request.query_params.get("unit"))
                 serializer_obj = self.get_serializer_class()(data)
+                frequency_data_obj = FrequencyDataSerializer(FrequencyData.objects.filter(
+                    sample_time__gt=datetime.today().replace(hour=0, minute=0, second=0)), many=True)
                 distinct_data_points = []
+                distinct_freq_points = []
                 for data_point in (serializer_obj.data["unit_data"]):
                     if not len(distinct_data_points):
                         distinct_data_points.append(data_point)
                     elif data_point["sample_time"] != distinct_data_points[-1]["sample_time"]:
-                        print(data_point["sample_time"],
-                              distinct_data_points[-1]["sample_time"])
                         distinct_data_points.append(data_point)
+                for freq_point in frequency_data_obj.data:
+                    if not len(distinct_freq_points):
+                        distinct_freq_points.append(freq_point)
+                    elif freq_point["sample_time"] != distinct_freq_points[-1]["sample_time"]:
+                        distinct_freq_points.append(freq_point)
                 # print(len(distinct_data_points))
                 # serializer_obj.data["unit_data"] = distinct_data_points
                 # print(len(serializer_obj.data["unit_data"]))
-                return Response({"id": serializer_obj.data["id"], "unit_data": distinct_data_points})
+                return Response({"id": serializer_obj.data["id"], "unit_data": distinct_data_points, "frequency": distinct_freq_points})
             except Exception as e:
                 print(e)
                 raise ValidationError("Mentioned Unit id doesn't exist")
         else:
             raise ValidationError("provide plant or unit parameter")
         return Response(serializer_obj.data)
+
+
+class UpdateClientCredentialsAPIView(generics.GenericAPIView):
+    # authentication_classes = [JWTAuthentication]
+    # permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        client_id = request.data.get("client_id")
+        client_secret = request.data.get("client_secret")
+        status_code = update_client_credentials(client_id, client_secret)
+        if status_code >= 400:
+            raise ValidationError("Invalid Client ID and Client Secret")
+        return Response()
