@@ -16,6 +16,7 @@ class DashboardConfig(AppConfig):
         """
         from dashboard import utilities
         utilities.update_client_token()
+        # utilities.dump_data()
         thread = Thread(target=utilities.run_scheduler)
         thread.setDaemon(True)
         thread.start()

@@ -5,7 +5,7 @@ from .serializers import Plant, PlantSerializer, Unit, UnitSerializer, UnitTimeS
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from django.db.models import Prefetch
-from datetime import datetime
+from datetime import datetime, timedelta
 from .utilities import fetch_unit_data, update_client_credentials
 
 # Create your views here.
@@ -119,12 +119,13 @@ class UnitTimeSeriesDataAPIView(generics.GenericAPIView):
         elif self.request.query_params.get("unit"):
             try:
                 data = self.get_queryset().prefetch_related(Prefetch(
-                    "unit_data", UnitData.objects.filter(sample_time__gt=datetime.today().replace(hour=0, minute=0, second=0)))).get(pk=self.request.query_params.get("unit"))
+                    "unit_data", UnitData.objects.filter(sample_time__gt=datetime.today().replace(hour=0, minute=0, second=0)-timedelta(hours=5, minutes=30)).order_by("sample_time"))).get(pk=self.request.query_params.get("unit"))
                 serializer_obj = self.get_serializer_class()(data)
                 frequency_data_obj = FrequencyDataSerializer(FrequencyData.objects.filter(
-                    sample_time__gt=datetime.today().replace(hour=0, minute=0, second=0)), many=True)
+                    sample_time__gt=datetime.today().replace(hour=0, minute=0, second=0)-timedelta(hours=5, minutes=30)), many=True)
                 distinct_data_points = []
                 distinct_freq_points = []
+                print(serializer_obj.data["unit_data"][0])
                 for data_point in (serializer_obj.data["unit_data"]):
                     if not len(distinct_data_points):
                         distinct_data_points.append(data_point)

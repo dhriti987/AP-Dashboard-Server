@@ -6,9 +6,19 @@ class PlantSerializer(serializers.ModelSerializer):
     """
     Serializer for the 'Plant' model. Includes all fields.
     """
+    total_generation = serializers.SerializerMethodField()
+
     class Meta:
         model = Plant
         fields = "__all__"
+
+    def get_total_generation(self, obj):
+        units = Unit.objects.filter(plant__name=obj)
+        sum = 0
+        for unit in units:
+            unit_data = unit.unit_data.last()
+            sum += float(unit_data.point_value) if unit_data else 0
+        return sum
 
 
 class UnitSerializer(serializers.ModelSerializer):

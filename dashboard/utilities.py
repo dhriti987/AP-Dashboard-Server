@@ -158,3 +158,60 @@ def dump_in_pickle_file():
 
 # u9das0s_ai306205.pv
 # e2e436dc-52cb-4f26-9ae7-23bce3d86727
+
+
+def dump_data():
+
+    start = (datetime.now().replace(hour=0, minute=0, second=0) -
+             timedelta(hours=5, minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    end = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+    url = "https://t01eprodcloudapp.sentience.honeywell.com/api/timeseries/values/intervals"
+    headersList = {
+        "Accept": "*/*",
+        "User-Agent": "Thunder Client (https://www.thunderclient.com)",
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    units = UnitDataAPIRequestSerializer(Unit.objects.all(), many=True).data
+    payload = json.dumps({
+        "startTime": start,
+        "endTime": end,
+        "queries": units,
+        "includeBounds": False
+    })
+    UnitData.objects.all().delete()
+    response = requests.post(url, data=payload, headers=headersList)
+    for unit in response.json():
+        print(unit)
+        unit_obj = Unit.objects.get(point_id=unit["pointId"])
+        for time, value in sorted(unit["pointValues"].items()):
+            time_micro = int(time)//1000
+            UnitData.objects.create(
+                unit=unit_obj,
+                point_value=value,
+                derived_quality="Good",
+                quality="Good",
+                sample_time=datetime.fromtimestamp(0) +
+                timedelta(microseconds=time_micro)
+            )
+    payload = json.dumps({
+        "startTime": start,
+        "endTime": end,
+        "queries": [frequency],
+        "includeBounds": False
+    })
+    response = requests.post(url, data=payload, headers=headersList)
+    FrequencyData.objects.all().delete()
+    for unit in response.json():
+        print(unit)
+        for time, value in sorted(unit["pointValues"].items()):
+            time_micro = int(time)//1000
+            FrequencyData.objects.create(
+                point_value=value,
+                derived_quality="Good",
+                quality="Good",
+                sample_time=datetime.fromtimestamp(0) +
+                timedelta(microseconds=time_micro)
+            )
+
+    print("end")
